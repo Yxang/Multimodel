@@ -113,13 +113,12 @@ class BasicDataset(data.Dataset):
                        x2 / w,
                        y2 / h,
                        (x2 - x1) * (y2 - y1) / (w * h)]
-            box_pos = [item.reshape(-1, 1) for item in box_pos]
-            box_pos = np.concatenate(box_pos, axis=1)
+            box_pos = np.stack(box_pos, axis=1)
         else:
             box_pos = box_loc
 
-        box_label = [np.array(label_to_token_id[label]).reshape(1, -1) for label in class_label]
-        box_label = np.concatenate(box_label, axis=0)
+        box_label = [np.array(label_to_token_id[label]) for label in class_label]
+        box_label = np.stack(box_label, axis=0)
 
 
         return (
@@ -271,7 +270,7 @@ class MNSDataset(NSDataset):
         pos_box_pos, pos_box_feature, pos_box_label = list(
             map(torch.tensor, (pos_box_pos, pos_box_feature, pos_box_label)))
 
-        pos_product_id, pos_query_id = self._read_ids(index)
+        pos_product_id, pos_query_id = others[0], others[4]
 
         if not self.multi_neg_sampling:
             return (
@@ -283,13 +282,14 @@ class MNSDataset(NSDataset):
                  torch.tensor([1]).float())]
             multi_neg_index = np.random.choice(self.size, self.neg_k, replace=False)
             for neg_index in multi_neg_index:
-                neg_product_id, neg_query_id = self._read_ids(neg_index)
+                _, box_loc, box_feature, class_label, others = self._read_h5_file(neg_index)
+                neg_product_id, neg_query_id = others[0], others[4]
                 
                 while pos_query_id == neg_query_id:
                     neg_index = np.random.choice(self.size, 1).item()
-                    neg_product_id, neg_query_id = self._read_ids(neg_index)
+                    _, box_loc, box_feature, class_label, others = self._read_h5_file(neg_index)
+                    neg_product_id, neg_query_id = others[0], others[4]
 
-                _, box_loc, box_feature, class_label, others = self._read_h5_file(neg_index)
                 
                 neg_box_pos, neg_box_feature, neg_box_label = self._process_box(
                     box_loc, box_feature, class_label, others, self.label_to_token_id)
