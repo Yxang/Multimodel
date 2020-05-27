@@ -18,7 +18,7 @@ from apex import amp
 
 from tqdm.notebook import tqdm
 
-from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM, BertAdam
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW
 
 from sklearn.metrics import accuracy_score
 
