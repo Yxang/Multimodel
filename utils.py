@@ -11,7 +11,7 @@ from torchvision import transforms
 
 from tqdm import tqdm
 
-from pytorch_pretrained_bert import BertTokenizer, BertModel, BertForMaskedLM, BertAdam
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW
 
 import json
 from collections import defaultdict
@@ -320,14 +320,13 @@ class TestDataset(BasicDataset):
                  cfg,
                  label_info_path='../data/Kdd/multimodal_labels.txt',
                  processed=False,
-                 neg_sampling=True, 
                  *args, 
                  **kwargs):
         super(TestDataset, self).__init__(h5_path=h5_path,
                                            mytokenizer=mytokenizer,
                                            label_info_path=label_info_path,
                                            cfg=cfg,
-                                           processed=False,
+                                           processed=processed,
                                            *args, **kwargs)
         self.data_others = self._read_h5_file(slice(self.size))
         
