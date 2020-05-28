@@ -372,7 +372,7 @@ class BasicAllDataset(data.Dataset):
         if not self.single_thread:
             opened_h5file.close()
 
-        return query.float(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float()
+        return query.long(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float()
 
     def __len__(self):
         return self.size
@@ -411,7 +411,7 @@ class MNSAllDataset(BasicAllDataset):
 
         query, box_pos, box_feature, box_label = list(map(torch.tensor, (query, box_pos, box_feature, box_label)))
 
-        samples = [(query.float(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float())]
+        samples = [(query.long(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float())]
 
         multi_neg_index = np.random.choice(self.size, self.neg_k, replace=False)
         for neg_index in multi_neg_index:
@@ -425,7 +425,7 @@ class MNSAllDataset(BasicAllDataset):
 
             neg_box_pos, neg_box_feature, neg_box_label = list(
                 map(torch.tensor, (neg_box_pos, neg_box_feature, neg_box_label)))
-            samples.append((query.float(), neg_box_pos.float(), neg_box_feature.float(), neg_box_label.float(),
+            samples.append((query.long(), neg_box_pos.float(), neg_box_feature.float(), neg_box_label.float(),
                             torch.tensor([0]).float()))
 
         if not self.single_thread:
