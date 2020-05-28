@@ -234,7 +234,6 @@ class NSDataset(BasicDataset):
         cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
         return cat_samples
 
-
 class MNSDataset(NSDataset):
 
     def __init__(self,
@@ -249,13 +248,13 @@ class MNSDataset(NSDataset):
                  *args,
                  **kwargs):
         super(MNSDataset, self).__init__(h5_path=h5_path,
-                                        mytokenizer=mytokenizer,
-                                        label_info_path=label_info_path,
-                                        cfg=cfg,
-                                        processed=False,
-                                        neg_sampling=True,
-                                        save_RAM=save_RAM,
-                                        *args, **kwargs)
+                                         mytokenizer=mytokenizer,
+                                         label_info_path=label_info_path,
+                                         cfg=cfg,
+                                         processed=False,
+                                         neg_sampling=True,
+                                         save_RAM=save_RAM,
+                                         *args, **kwargs)
         self.multi_neg_sampling = multi_neg_sampling
         self.neg_k = neg_k
         
@@ -305,7 +304,7 @@ class MNSDataset(NSDataset):
         sam = []
         for i in range(sample_num):
             sam += list(samples[i])
-        transposed_samples = list(zip(*samples))
+        transposed_samples = list(zip(*sam))
         cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
         return cat_samples
 
@@ -323,11 +322,11 @@ class TestDataset(BasicDataset):
                  *args, 
                  **kwargs):
         super(TestDataset, self).__init__(h5_path=h5_path,
-                                           mytokenizer=mytokenizer,
-                                           label_info_path=label_info_path,
-                                           cfg=cfg,
-                                           processed=processed,
-                                           *args, **kwargs)
+                                          mytokenizer=mytokenizer,
+                                          label_info_path=label_info_path,
+                                          cfg=cfg,
+                                          processed=processed,
+                                          *args, **kwargs)
         self.data_others = self._read_h5_file(slice(self.size))
         
     def _read_h5_file(self, index):
@@ -343,11 +342,113 @@ class TestDataset(BasicDataset):
         productID = self.data_others[0]
         queryID = self.data_others[4]
         return productID, queryID
-    
+
+class BasicAllDataset(data.Dataset):
+    def __init__(self, h5path, single_thread=True, *args, **kwargs):
+        super(BasicAllDataset, self).__init__(*args, **kwargs)
+        self.h5path = h5path
+        self.single_thread = single_thread
+        with h5py.File(h5path, 'r', libver='latest') as h5file:
+            self.size = h5file.get('querys/data').shape[0]
+        if self.single_thread:
+            self.h5file = h5py.File(h5path, 'r', libver='latest')
+
+    def _getitem(self, index, opened_h5file):
+        query = opened_h5file.get('querys/data')[index]
+        box_pos = opened_h5file.get('box_poss/data')[index]
+        box_feature = opened_h5file.get('box_feature/data')[index]
+        box_label = opened_h5file.get('box_label/data')[index]
+        return query, box_pos, box_feature, box_label
+
+    def __getitem__(self, index):
+        if self.single_thread:
+            opened_h5file = self.h5file
+        else:
+            opened_h5file = h5py.File(self.h5path, 'r', libver='latest')
+
+        query, box_pos, box_feature, box_label = self._getitem(index, opened_h5file)
+
+        query, box_pos, box_feature, box_label = list(map(torch.tensor, (query, box_pos, box_feature, box_label)))
+
+        if not self.single_thread:
+            opened_h5file.close()
+
+        return query.float(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float()
+
+    def __len__(self):
+        return self.size
+
+    def _get_others(self, index):
+        if self.single_thread:
+            return self.h5file.get('others/data')[index]
+        else:
+            with h5py.File(self.h5path, 'r', libver='latest') as opened_h5file:
+                others = opened_h5file.get('others/data')[index]
+            return others
+
+    @staticmethod
+    def Collate_fn(samples):
+        transposed_samples = list(zip(*samples))
+        cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
+        return cat_samples
+
+
+class MNSAllDataset(BasicAllDataset):
+
+    def __init__(self, h5path, neg_k=5, single_thread=True, *args, **kwargs):
+        super(MNSAllDataset, self).__init__(h5path, single_thread=single_thread, *args, **kwargs)
+        self.neg_k = neg_k
+
+    def __getitem__(self, index):
+        if self.single_thread:
+            opened_h5file = self.h5file
+        else:
+            opened_h5file = h5py.File(self.h5path, 'r', libver='latest')
+
+        query, box_pos, box_feature, box_label = self._getitem(index, opened_h5file)
+        otherss = opened_h5file.get('others/data')
+
+        pos_product_id, pos_query_id = otherss[index, 0], otherss[index, 4]
+
+        query, box_pos, box_feature, box_label = list(map(torch.tensor, (query, box_pos, box_feature, box_label)))
+
+        samples = [(query.float(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float())]
+
+        multi_neg_index = np.random.choice(self.size, self.neg_k, replace=False)
+        for neg_index in multi_neg_index:
+            neg_product_id, neg_query_id = otherss[neg_index, 0], otherss[neg_index, 4]
+
+            while pos_query_id == neg_query_id:
+                neg_index = np.random.choice(self.size, 1).item()
+                neg_product_id, neg_query_id = otherss[neg_index, 0], otherss[neg_index, 4]
+
+            _, neg_box_pos, neg_box_feature, neg_box_label = self._getitem(neg_index, opened_h5file)
+
+            neg_box_pos, neg_box_feature, neg_box_label = list(
+                map(torch.tensor, (neg_box_pos, neg_box_feature, neg_box_label)))
+            samples.append((query.float(), neg_box_pos.float(), neg_box_feature.float(), neg_box_label.float(),
+                            torch.tensor([0]).float()))
+
+        if not self.single_thread:
+            opened_h5file.close()
+
+        return (tuple(samples))
+
+    @staticmethod
+    def Collate_fn(samples):  # Collate_fn的输入是 [self.dataset[i] for i in indices]，即此batch的数据(data,target)的list
+        sample_num = len(samples[0])
+        samples = list(zip(*samples))
+        sam = []
+        for i in range(sample_num):
+            sam += list(samples[i])
+        transposed_samples = list(zip(*sam))
+        cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
+        return cat_samples
+
 
 class nDCGat5_Calculator:
-    def __init__(self, h5path, tokenizer, cfg, k=5, processed=False, val_ans_path='../data/Kdd/valid_answer.json'):
-        self.test_dataset = TestDataset(h5path, tokenizer, cfg=cfg, processed=processed)
+    def __init__(self, h5path, k=5, val_ans_path='../data/Kdd/valid_answer.json'):
+        self.test_dataset = BasicAllDataset(h5path)
         self.k = k
         self.val_ans_path = val_ans_path
         
@@ -356,10 +457,9 @@ class nDCGat5_Calculator:
     
     def nDCGat5(self, val_dataset, preds, k=5):
         dataset_sizes = len(val_dataset)
-        others = val_dataset._read_h5_file(slice(dataset_sizes)) # list的Index作为参数时，需要切片slice作为参数传入
+        others = val_dataset._get_others(slice(dataset_sizes)) # list的Index作为参数时，需要切片slice作为参数传入
         queryID = others[:, 4]
         productID = others[:, 0]
-
 
         pred_dict = defaultdict(list)
 

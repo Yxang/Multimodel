@@ -18,27 +18,18 @@ from apex import amp
 
 from tqdm.notebook import tqdm
 
-from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW, get_linear_schedule_with_warmup
 
 from sklearn.metrics import accuracy_score
 
-from utils import MyTokenizer, MyBert, BasicDataset, NSDataset, MNSDataset, nDCGat5_Calculator
+from utils import MyTokenizer, MyBert, BasicAllDataset, MNSAllDataset, nDCGat5_Calculator
 
 import copy
-
-
-# In[3]:
-
 
 np.random.seed(2020)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.manual_seed(2020)
-
-
-# ## Config
-
-# In[4]:
 
 
 cfg = {}
@@ -49,7 +40,7 @@ cfg['bert_model_name'] = 'bert-base-uncased'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
     'batch_size': 32, 
-    'num_workers': 8,
+    'num_workers': 0,
     'pin_memory': True}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
@@ -62,11 +53,6 @@ basic_model_cfg['pos_emb_size'] = 8
 basic_model_cfg['bilstm_hidden_size'] = 768
 basic_model_cfg['clf1_out'] = 512
 basic_model_cfg['clf2_out'] = 128
-
-
-# ## Model
-
-# In[5]:
 
 
 class BasicModel(nn.Module):
@@ -121,7 +107,7 @@ def accuracy_score_prob(y_true, y_pred, threshold=0.5):
 # In[7]:
 
 
-def train_model(dataloders, model, criterion, optimizer, metrics=None, device='cuda:0', num_epochs=25, save_gpu_ram=False):
+def train_model(dataloders, model, criterion, optimizer, metrics=None, device='cuda:0', num_epochs=25):
     best_loss = np.inf
     dataset_sizes = {
         'train': len(dataloders['train'].dataset),
@@ -178,10 +164,7 @@ def train_model(dataloders, model, criterion, optimizer, metrics=None, device='c
             
             epoch_pred = torch.cat(epoch_pred, 0)
             epoch_true = torch.cat(epoch_true, 0)
-            
-            if save_gpu_ram:
-                del inputs, labels
-                torch.cuda.empty_cache()
+
             
             if phase == 'train':
                 train_epoch_loss = running_loss / dataset_sizes['train']
@@ -240,8 +223,8 @@ tokenizer = MyTokenizer(cfg=cfg)
 # In[11]:
 
 
-ds = MNSDataset('../data/Kdd/train_processed.h5', tokenizer, cfg, neg_k=cfg['num_negative_sampling'], processed=True, save_RAM=cfg['save_RAM'])
-val_ds = BasicDataset('../data/Kdd/valid_processed.h5', tokenizer, cfg, processed=True)
+ds = MNSAllDataset('../data/Kdd/train.sample_all_processed_me.h5', neg_k=cfg['num_negative_sampling'])
+val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5')
 
 
 # In[12]:
@@ -256,35 +239,24 @@ train_sampler = data.sampler.SubsetRandomSampler(train_indices[:train_split])
 # In[13]:
 
 
-dl = data.DataLoader(ds, sampler=train_sampler, collate_fn=NSDataset.Collate_fn, **cfg['dataloader_cfg'])
-valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=BasicDataset.Collate_fn, **cfg['dataloader_cfg'])
+dl = data.DataLoader(ds, sampler=train_sampler, collate_fn=ds.Collate_fn, **cfg['dataloader_cfg'])
+valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, **cfg['dataloader_cfg'])
 dataloders = {'train': dl,
               'valid': valid_dl}
 metrics = {'acc': accuracy_score_prob, 
-           'nDCG@5': nDCGat5_Calculator('../data/Kdd/valid.h5', tokenizer, cfg)}
-
-
-# In[ ]:
+           'nDCG@5': nDCGat5_Calculator('../data/Kdd/valid_all_processed_me.h5')}
 
 
 basic_model = BasicModel(cfg['bert_model_name'], cfg=basic_model_cfg)
 model = basic_model
 
 
-# In[ ]:
-
-
 bert_params = basic_model.bert.parameters()
 other_params = list(set(basic_model.parameters()) - set(bert_params))
 
-#optimizer = BertAdam([
-#    {'params': basic_model.bert.parameters() ,'lr': 3e-6, 'warmup': 0.4},
-#    {'params': other_params, 'lr': 3e-4, 'warmup': 0.1}],
-#    t_total=(len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs']
-#)
-optimizer = optim.Adam([
-    {'params': basic_model.bert.parameters() ,'lr': 3e-6,},
-    {'params': other_params, 'lr': 3e-4, }],
+optimizer = AdamW([
+    {'params': basic_model.bert.parameters() ,'lr': 3e-6, 'warmup': 0.4},
+    {'params': other_params, 'lr': 3e-4, 'warmup': 0.1}],
 )
 criterion = nn.BCEWithLogitsLoss()
 
@@ -302,19 +274,6 @@ model, optimizer = amp.initialize(model, optimizer, opt_level=cfg['apex_opt_leve
 train_model(dataloders, model, criterion, optimizer, metrics=metrics, num_epochs=cfg['epochs'])
 
 
-# In[ ]:
-
-
-print(torch.cuda.memory_summary())
-
-
-# In[ ]:
-
-
-accuracy_score_prob(true, pred)
-
-
-# In[ ]:
 
 
 
