@@ -16,7 +16,7 @@ import torch.utils.data as data
 from torchvision import transforms
 from apex import amp
 
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW, get_linear_schedule_with_warmup
 
