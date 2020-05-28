@@ -413,13 +413,8 @@ class MNSAllDataset(BasicAllDataset):
 
         samples = [(query.long(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float())]
 
-        multi_neg_index = np.random.choice(self.size, self.neg_k, replace=False)
-        for neg_index in multi_neg_index:
-            neg_product_id, neg_query_id = otherss[neg_index, 0], otherss[neg_index, 4]
-
-            while pos_query_id == neg_query_id:
-                neg_index = np.random.choice(self.size, 1).item()
-                neg_product_id, neg_query_id = otherss[neg_index, 0], otherss[neg_index, 4]
+        multi_neg_index = np.random.choice(self.size, 1).item()
+        for neg_index in range(multi_neg_index, multi_neg_index + self.neg_k):
 
             _, neg_box_pos, neg_box_feature, neg_box_label = self._getitem(neg_index, opened_h5file)
 
