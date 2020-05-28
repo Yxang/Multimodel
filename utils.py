@@ -48,9 +48,8 @@ class MyBert(nn.Module):
         super(MyBert, self).__init__()
         self.bert = BertModel.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
 
-    def forward(self, 
-                input_ids, output_all_encoded_layers=False):
-        bert_out, _ = self.bert(input_ids, output_all_encoded_layers=output_all_encoded_layers)
+    def forward(self, input_ids):
+        bert_out, _ = self.bert(input_ids)
         out = bert_out[:, 0, :]
         return out
     
