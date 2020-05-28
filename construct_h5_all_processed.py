@@ -53,15 +53,15 @@ def create_h5_all_processed(
             shape=(WRITE_CHUNK, cfg['max_query_word']),
             chunks=(1, cfg['max_query_word']),
             maxshape=(None, cfg['max_query_word']),
-            compression="lzf",
-            dtype='f'
+            #compression="lzf",
+            dtype='i'
         )
         box_poss_h5ds = hf.create_dataset(
             'box_poss/data',
             shape=(WRITE_CHUNK, cfg['max_box_num'], 5),
             chunks=(1, cfg['max_box_num'], 5),
             maxshape=(None, cfg['max_box_num'], 5),
-            compression="lzf",
+            #compression="lzf",
             dtype='f'
         )
         box_features_h5ds = hf.create_dataset(
@@ -69,7 +69,7 @@ def create_h5_all_processed(
             shape=(WRITE_CHUNK, cfg['max_box_num'], 2048),
             chunks=(1, cfg['max_box_num'], 2048),
             maxshape=(None, cfg['max_box_num'], 2048),
-            compression="lzf",
+            #compression="lzf",
             dtype='f'
         )
         box_labels_h5ds = hf.create_dataset(
@@ -77,7 +77,7 @@ def create_h5_all_processed(
             shape=(WRITE_CHUNK, cfg['max_box_num'], cfg['max_class_word_num']),
             chunks=(1, cfg['max_box_num'], cfg['max_class_word_num']),
             maxshape=(None, cfg['max_box_num'], cfg['max_class_word_num']),
-            compression="lzf",
+            #compression="lzf",
             dtype='f'
         )
         others_h5ds = hf.create_dataset(
@@ -85,7 +85,7 @@ def create_h5_all_processed(
             shape=(WRITE_CHUNK, 5),
             chunks=(1, 5),
             maxshape=(None, 5),
-            compression="lzf",
+            #compression="lzf",
             dtype='i'
         )
 
