@@ -407,8 +407,6 @@ class MNSAllDataset(BasicAllDataset):
         query, box_pos, box_feature, box_label = self._getitem(index, opened_h5file)
         otherss = opened_h5file.get('others/data')
 
-        pos_product_id, pos_query_id = otherss[index, 0], otherss[index, 4]
-
         query, box_pos, box_feature, box_label = list(map(torch.tensor, (query, box_pos, box_feature, box_label)))
 
         samples = [(query.long(), box_pos.float(), box_feature.float(), box_label.float(), torch.tensor([1]).float())]
