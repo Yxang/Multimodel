@@ -107,7 +107,7 @@ def accuracy_score_prob(y_true, y_pred, threshold=0.5):
 
 
 def train_model(dataloders, model, criterion, optimizer, metrics=None, device='cuda:0', num_epochs=25):
-    best_loss = np.inf
+    best_ndcg = 0.
     dataset_sizes = {
         'train': len(dataloders['train'].dataset),
         'valid': len(dataloders['valid'].dataset)
@@ -187,7 +187,7 @@ def train_model(dataloders, model, criterion, optimizer, metrics=None, device='c
             if epoch in [0, 1, 3, 7, 11, 15, 19]:
                 torch.save(checkpoint, 'model/' + cfg['save_name'] + '{:d}.pt'.format(epoch))
 
-            if phase == 'valid' and valid_epoch_loss < best_loss:
+            if phase == 'valid' and epoch_val_metrics['nDCG@5'] > best_ndcg:
                 best_loss = valid_epoch_loss
                 best_metrics = epoch_val_metrics
                 best_epoch = epoch
