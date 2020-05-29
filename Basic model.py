@@ -33,14 +33,14 @@ torch.manual_seed(2020)
 
 
 cfg = {}
-cfg['train_fraction'] = 0.25
+cfg['train_fraction'] = 0.05
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
 cfg['bert_model_name'] = 'bert-base-uncased'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
-    'batch_size': 32, 
-    'num_workers': 0,
+    'batch_size': 256,
+    'num_workers': 14,
     'pin_memory': True}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
@@ -223,8 +223,8 @@ tokenizer = MyTokenizer(cfg=cfg)
 # In[11]:
 
 
-ds = MNSAllDataset('../data/Kdd/train.sample_all_processed_me.h5', neg_k=cfg['num_negative_sampling'])
-val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5')
+ds = MNSAllDataset('../data/Kdd/train.sample_all_processed_me.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
+val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5', single_thread=False)
 
 
 # In[12]:
