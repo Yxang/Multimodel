@@ -107,7 +107,7 @@ def accuracy_score_prob(y_true, y_pred, threshold=0.5):
 # In[7]:
 
 
-def train_model(dataloders, model, criterion, optimizer, metrics=None, device='cuda:0', num_epochs=25):
+def train_model(dataloders, model, criterion, optimizer, scheduler=None, metrics=None, device='cuda:0', num_epochs=25):
     best_ndcg = 0.
     dataset_sizes = {
         'train': len(dataloders['train'].dataset),
@@ -158,6 +158,8 @@ def train_model(dataloders, model, criterion, optimizer, metrics=None, device='c
                         scaled_loss.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                     optimizer.step()
+                    if scheduler:
+                        scheduler.step()
 
                 running_loss += loss.data.item() * batch_size
                 epoch_pred.append(preds.detach().cpu())
@@ -224,7 +226,7 @@ tokenizer = MyTokenizer(cfg=cfg)
 # In[11]:
 
 
-ds = MNSAllDataset('../data/Kdd/train.sample_all_processed_me.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
+ds = MNSAllDataset('../data/Kdd/train_all_processed_me.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
 val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5', single_thread=True)
 
 
