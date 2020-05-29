@@ -241,7 +241,7 @@ val_cfg = cfg['dataloader_cfg'].copy()
 val_cfg['num_workers'] = 0
 
 dl = data.DataLoader(ds, sampler=train_sampler, collate_fn=ds.Collate_fn, **cfg['dataloader_cfg'])
-valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, **val_cfg['dataloader_cfg'])
+valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, **val_cfg)
 dataloders = {'train': dl,
               'valid': valid_dl}
 metrics = {'acc': accuracy_score_prob, 
