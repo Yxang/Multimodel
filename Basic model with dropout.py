@@ -44,7 +44,7 @@ cfg['dataloader_cfg'] = {
     'pin_memory': True}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
-cfg['save_name'] = 'bert-base-2fc'
+cfg['save_name'] = 'bert-base-3fc-dropout'
 cfg['num_negative_sampling'] = 5
 cfg['save_RAM'] = True
 
@@ -62,13 +62,14 @@ class BasicModel(nn.Module):
         self.bert = MyBert(bert_name, **other_bert_kwargs)
         
         self.pos_emb_layer = nn.Linear(5, cfg['pos_emb_size'])
-        self.img_bilstm = nn.LSTM(2048 + cfg['pos_emb_size'], cfg['bilstm_hidden_size'], batch_first=True, bidirectional=True)
-        
-        self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf2_out'])
-        self.clf2 = nn.Linear(basic_model_cfg['clf2_out'], 1)
-        #self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
-        #self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
-        #self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
+        self.img_bilstm = nn.LSTM(2048 + cfg['pos_emb_size'], cfg['bilstm_hidden_size'],
+                                  batch_first=True, bidirectional=True, dropout=0.1)
+
+        self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
+        self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
+        self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
+
+        self.dropout = nn.Dropout(0.2)
         
     def forward(self, query, box_pos, box_feature, box_label):
         
@@ -86,12 +87,10 @@ class BasicModel(nn.Module):
         
         embs = torch.cat([query_emb, image_emb], dim=1)
         
-        #embs = F.relu(self.clf1(embs))
-        #embs = F.relu(self.clf2(embs))
-        #embs = self.clf3(embs)
-        
         embs = F.relu(self.clf1(embs))
-        embs = self.clf2(embs)
+        embs = F.relu(self.clf2(embs))
+        embs = self.dropout(embs)
+        embs = self.clf3(embs)
         
         return embs
 
