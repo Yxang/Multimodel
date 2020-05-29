@@ -405,7 +405,6 @@ class MNSAllDataset(BasicAllDataset):
             opened_h5file = h5py.File(self.h5path, 'r', libver='latest')
 
         query, box_pos, box_feature, box_label = self._getitem(index, opened_h5file)
-        otherss = opened_h5file.get('others/data')
 
         query, box_pos, box_feature, box_label = list(map(torch.tensor, (query, box_pos, box_feature, box_label)))
 

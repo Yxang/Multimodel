@@ -224,7 +224,7 @@ tokenizer = MyTokenizer(cfg=cfg)
 
 
 ds = MNSAllDataset('../data/Kdd/train.sample_all_processed_me.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
-val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5', single_thread=False)
+val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5', single_thread=True)
 
 
 # In[12]:
@@ -237,10 +237,11 @@ train_sampler = data.sampler.SubsetRandomSampler(train_indices[:train_split])
 
 
 # In[13]:
-
+val_cfg = cfg['dataloader_cfg'].copy()
+val_cfg['num_workers'] = 0
 
 dl = data.DataLoader(ds, sampler=train_sampler, collate_fn=ds.Collate_fn, **cfg['dataloader_cfg'])
-valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, **cfg['dataloader_cfg'])
+valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, **val_cfg['dataloader_cfg'])
 dataloders = {'train': dl,
               'valid': valid_dl}
 metrics = {'acc': accuracy_score_prob, 
