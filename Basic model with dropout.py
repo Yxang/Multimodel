@@ -63,7 +63,7 @@ class BasicModel(nn.Module):
         
         self.pos_emb_layer = nn.Linear(5, cfg['pos_emb_size'])
         self.img_bilstm = nn.LSTM(2048 + cfg['pos_emb_size'], cfg['bilstm_hidden_size'],
-                                  batch_first=True, bidirectional=True, dropout=0.1)
+                                  batch_first=True, bidirectional=True)
 
         self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
         self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
@@ -280,7 +280,7 @@ model, optimizer = amp.initialize(model, optimizer, opt_level=cfg['apex_opt_leve
 # In[ ]:
 
 
-train_model(dataloders, model, criterion, optimizer, metrics=metrics, num_epochs=cfg['epochs'])
+train_model(dataloders, model, criterion, optimizer, scheduler, metrics=metrics, num_epochs=cfg['epochs'])
 
 
 

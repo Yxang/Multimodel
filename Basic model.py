@@ -280,7 +280,7 @@ model, optimizer = amp.initialize(model, optimizer, opt_level=cfg['apex_opt_leve
 # In[ ]:
 
 
-train_model(dataloders, model, criterion, optimizer, metrics=metrics, num_epochs=cfg['epochs'])
+train_model(dataloders, model, criterion, optimizer, scheduler, metrics=metrics, num_epochs=cfg['epochs'])
 
 
 
