@@ -45,7 +45,7 @@ cfg['dataloader_cfg'] = {
     'pin_memory': True}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
-cfg['save_name'] = 'bert-base-3fc-dropout'
+cfg['save_name'] = 'bert-base-3fc-dropout-label'
 cfg['num_negative_sampling'] = 5
 cfg['save_RAM'] = True
 
@@ -193,6 +193,7 @@ def train_model(dataloders, model, criterion, optimizer, scheduler=None, metrics
             checkpoint = {
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
+                'scheduler':  scheduler.state_dict(),
                 'amp': amp.state_dict()
             }
             if epoch in [0, 1, 3, 7, 11, 15, 19]:
