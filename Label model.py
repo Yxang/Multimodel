@@ -42,7 +42,7 @@ cfg['dataloader_cfg'] = {
     'batch_size': 64,
     'num_workers': 14,
     'pin_memory': True}
-cfg['epochs'] = 20
+cfg['epochs'] = 30
 cfg['apex_opt_level'] = 'O2'
 cfg['save_name'] = 'label-model'
 cfg['num_negative_sampling'] = 5
@@ -282,7 +282,7 @@ optimizer = AdamW([
 
 scheduler = get_linear_schedule_with_warmup(
     optimizer,
-    num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.15),
+    num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.1),
     num_training_steps=(len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'])
 
 criterion = nn.BCEWithLogitsLoss()
