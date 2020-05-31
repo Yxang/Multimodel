@@ -82,7 +82,7 @@ class BasicModelLabel(nn.Module):
         self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
         self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
 
-        self.dropout = nn.Dropout(0.2)
+        self.dropout = nn.Dropout(0.4)
 
     def forward(self, query, box_pos, box_feature, box_label):
         batch_size = query.shape[0]
@@ -282,7 +282,7 @@ optimizer = AdamW([
 
 scheduler = get_linear_schedule_with_warmup(
     optimizer,
-    num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.2),
+    num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.15),
     num_training_steps=(len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'])
 
 criterion = nn.BCEWithLogitsLoss()
