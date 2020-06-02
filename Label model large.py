@@ -63,6 +63,8 @@ class BasicModelLabel(nn.Module):
         self.cfg = cfg
         self.model_cfg = model_cfg
         self.bert = MyBert(bert_name, **other_bert_kwargs)
+        for param in self.bert.parameters():
+            param.requires_grad = False
 
         with open(cfg['emb_file'], 'rb') as f:
             w_mat = np.load(f)
@@ -276,7 +278,7 @@ bert_params = basic_model.bert.parameters()
 other_params = list(set(basic_model.parameters()) - set(bert_params))
 
 optimizer = AdamW([
-    {'params': basic_model.bert.parameters(), 'lr': 3e-7},
+    #{'params': basic_model.bert.parameters(), 'lr': 3e-7},
     {'params': other_params, 'lr': 3e-4}],
 )
 
