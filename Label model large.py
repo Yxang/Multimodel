@@ -35,11 +35,11 @@ cfg = {}
 cfg['train_fraction'] = 0.1
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
-cfg['bert_model_name'] = 'bert-large-uncased'
-cfg['emb_file'] = 'label_emb_bert_base_uncased.npy'
+cfg['bert_model_name'] = 'bert-base-uncased'
+cfg['emb_file'] = 'label_emb_bert_large_uncased.npy'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
-    'batch_size': 2,
+    'batch_size': 32,
     'num_workers': 14,
     'pin_memory': True}
 cfg['epochs'] = 30
@@ -50,7 +50,7 @@ cfg['save_RAM'] = True
 
 basic_model_cfg = {}
 basic_model_cfg['pos_emb_size'] = 8
-basic_model_cfg['bilstm_hidden_size'] = 1024
+basic_model_cfg['bilstm_hidden_size'] = 768
 basic_model_cfg['label_emb_fc_1_out'] = 256
 basic_model_cfg['feature_emb_fc_1_out'] = 512
 basic_model_cfg['clf1_out'] = 512
@@ -63,8 +63,6 @@ class BasicModelLabel(nn.Module):
         self.cfg = cfg
         self.model_cfg = model_cfg
         self.bert = MyBert(bert_name, **other_bert_kwargs)
-        for param in self.bert.parameters():
-            param.requires_grad = False
 
         with open(cfg['emb_file'], 'rb') as f:
             w_mat = np.load(f)
@@ -80,9 +78,9 @@ class BasicModelLabel(nn.Module):
             model_cfg['bilstm_hidden_size'],
             batch_first=True, bidirectional=True)
 
-        self.clf1 = nn.Linear(1024 + model_cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
+        self.clf1 = nn.Linear(768 + model_cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
         self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
-        self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
+        self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 2)
 
         self.dropout = nn.Dropout(0.4)
 
@@ -161,20 +159,20 @@ def train_model(dataloders, model, criterion, optimizer, scheduler=None, metrics
 
                     query, box_pos, box_feature, box_label, labels = (
                         query.to(device), box_pos.to(device), box_feature.to(device), box_label.to(device),
-                        labels.to(device)
+                        labels.to(device).long().view(-1)
                     )
 
                     outputs = model(query, box_pos, box_feature, box_label)
-                    preds = outputs
+                    _, preds = torch.max(outputs, dim=1)
                     loss = criterion(outputs, labels)
                 elif phase == 'valid':
                     with torch.no_grad():
                         query, box_pos, box_feature, box_label, labels = (
                             query.to(device), box_pos.to(device), box_feature.to(device), box_label.to(device),
-                            labels.to(device)
+                            labels.to(device).long().view(-1)
                         )
                         outputs = model(query, box_pos, box_feature, box_label)
-                        preds = outputs
+                        _, preds = torch.max(outputs, dim=1)
                         loss = criterion(outputs, labels)
 
                 if phase == 'train':
@@ -278,7 +276,7 @@ bert_params = basic_model.bert.parameters()
 other_params = list(set(basic_model.parameters()) - set(bert_params))
 
 optimizer = AdamW([
-    #{'params': basic_model.bert.parameters(), 'lr': 3e-7},
+    {'params': basic_model.bert.parameters(), 'lr': 3e-7},
     {'params': other_params, 'lr': 3e-4}],
 )
 
@@ -287,7 +285,7 @@ scheduler = get_linear_schedule_with_warmup(
     num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.1),
     num_training_steps=(len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'])
 
-criterion = nn.BCEWithLogitsLoss()
+criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor([2., 1.]).cuda())
 
 # In[ ]:
 
