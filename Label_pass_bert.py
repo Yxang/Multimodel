@@ -54,7 +54,7 @@ basic_model_cfg['clf2_out'] = 128
 
 #def LabelPassBert():
 
-def read_label_info(path='../data/Kdd/multimodal_labels.txt'):
+def read_label_info(path='../data/multimodal_labels.txt'):
     num_to_label = []
     with open(path, 'r') as f:
         l = f.readline()
@@ -81,6 +81,7 @@ num_to_label = read_label_info()
 label_to_token_id = convert_label_to_token_id(num_to_label, myTokenizer)
 #print(label_to_token_id)
 
+
 mybert = MyBert(cfg['bert_model_name'])
 label_to_embedding = [np.zeros((1, 768))]
 for i in label_to_token_id:
@@ -90,5 +91,5 @@ for i in label_to_token_id:
 #label_to_embedding.reshape(())
 print(label_to_embedding)
 cat_label_to_embedding = np.concatenate(label_to_embedding, axis=0)
-with open('label_emb_bert_base_uncased.npy', 'wb') as f:
+with open('../user_data/tmp_data/label_emb_bert_base_uncased.npy', 'wb') as f:
     np.save(f, cat_label_to_embedding)

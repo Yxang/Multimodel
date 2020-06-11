@@ -33,10 +33,11 @@ torch.manual_seed(2020)
 
 
 cfg = {}
-cfg['train_fraction'] = 0.1
+cfg['train_fraction'] = 0.001
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
 cfg['bert_model_name'] = 'bert-base-uncased'
+cfg['emb_file'] = 'label_emb_bert_base_uncased.npy'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
     'batch_size': 256,
@@ -44,31 +45,38 @@ cfg['dataloader_cfg'] = {
     'pin_memory': True}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
-cfg['save_name'] = 'bert-base-2fc'
+cfg['save_name'] = 'bert-base-3fc-dropout-label'
 cfg['num_negative_sampling'] = 5
 cfg['save_RAM'] = True
 
 basic_model_cfg = {}
 basic_model_cfg['pos_emb_size'] = 8
 basic_model_cfg['bilstm_hidden_size'] = 768
+basic_model_cfg['label_emb_fc_1_out'] = 0
 basic_model_cfg['clf1_out'] = 512
 basic_model_cfg['clf2_out'] = 128
 
-
-class BasicModel(nn.Module):
-    def __init__(self, bert_name, cfg, **other_bert_kwargs):
-        super(BasicModel, self).__init__()
+class BasicModelLabel(nn.Module):
+    def __init__(self, bert_name, cfg, model_cfg, **other_bert_kwargs):
+        super(BasicModelLabel, self).__init__()
         self.cfg = cfg
+        self.model_cfg = model_cfg
         self.bert = MyBert(bert_name, **other_bert_kwargs)
-        
-        self.pos_emb_layer = nn.Linear(5, cfg['pos_emb_size'])
-        self.img_bilstm = nn.LSTM(2048 + cfg['pos_emb_size'], cfg['bilstm_hidden_size'], batch_first=True, bidirectional=True)
-        
-        self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf2_out'])
-        self.clf2 = nn.Linear(basic_model_cfg['clf2_out'], 1)
-        #self.clf1 = nn.Linear(768 + cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
-        #self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
-        #self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
+
+        with open('../user_data/tmp_data/' + cfg['emb_file'], 'rb') as f:
+            w_mat = np.load(f)
+
+        self.label_emb = nn.Embedding.from_pretrained(torch.tensor(w_mat))
+
+        self.pos_emb_layer = nn.Linear(5, model_cfg['pos_emb_size'])
+        self.img_bilstm = nn.LSTM(2048 + model_cfg['pos_emb_size'] + w_mat.shape[1], model_cfg['bilstm_hidden_size'],
+                                  batch_first=True, bidirectional=True)
+
+        self.clf1 = nn.Linear(768 + model_cfg['bilstm_hidden_size'], basic_model_cfg['clf1_out'])
+        self.clf2 = nn.Linear(basic_model_cfg['clf1_out'], basic_model_cfg['clf2_out'])
+        self.clf3 = nn.Linear(basic_model_cfg['clf2_out'], 1)
+
+        self.dropout = nn.Dropout(0.2)
         
     def forward(self, query, box_pos, box_feature, box_label):
         
@@ -78,20 +86,20 @@ class BasicModel(nn.Module):
         
         box_pos = box_pos.view(-1, 5)
         pos_emb = self.pos_emb_layer(box_pos)
-        pos_emb = pos_emb.view(batch_size, -1, self.cfg['pos_emb_size'])
-        
-        image_seq_feat = torch.cat([pos_emb, box_feature], dim=2)
+        pos_emb = pos_emb.view(batch_size, -1, self.model_cfg['pos_emb_size'])
+
+        label_emb = self.label_emb(box_label)
+
+        image_seq_feat = torch.cat([pos_emb, box_feature, label_emb], dim=2)
         image_lstm, _ = self.img_bilstm(image_seq_feat)
-        image_emb = image_lstm.view(batch_size, -1, 2, self.cfg['bilstm_hidden_size'])[:, 0, 1, :]
+        image_emb = image_lstm.view(batch_size, -1, 2, self.model_cfg['bilstm_hidden_size'])[:, 0, 1, :]
         
         embs = torch.cat([query_emb, image_emb], dim=1)
         
-        #embs = F.relu(self.clf1(embs))
-        #embs = F.relu(self.clf2(embs))
-        #embs = self.clf3(embs)
-        
         embs = F.relu(self.clf1(embs))
-        embs = self.clf2(embs)
+        embs = F.relu(self.clf2(embs))
+        embs = self.dropout(embs)
+        embs = self.clf3(embs)
         
         return embs
 
@@ -185,10 +193,11 @@ def train_model(dataloders, model, criterion, optimizer, scheduler=None, metrics
             checkpoint = {
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
+                'scheduler':  scheduler.state_dict(),
                 'amp': amp.state_dict()
             }
             if epoch in [0, 1, 3, 7, 11, 15, 19]:
-                torch.save(checkpoint, 'model/' + cfg['save_name'] + '{:d}.pt'.format(epoch))
+                torch.save(checkpoint, '../user_data/tmp_data/' + cfg['save_name'] + '{:d}.pt'.format(epoch))
 
             if phase == 'valid' and epoch_val_metrics['nDCG@5'] > best_ndcg:
                 best_loss = valid_epoch_loss
@@ -226,8 +235,8 @@ tokenizer = MyTokenizer(cfg=cfg)
 # In[11]:
 
 
-ds = MNSAllDataset('../data/Kdd/train_all_processed_me.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
-val_ds = BasicAllDataset('../data/Kdd/valid_all_processed_me.h5', single_thread=True)
+ds = MNSAllDataset('../user_data/tmp_data/train_all_processed_label.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
+val_ds = BasicAllDataset('../user_data/tmp_data/valid_all_processed_label.h5', single_thread=True)
 
 
 # In[12]:
@@ -248,10 +257,10 @@ valid_dl = data.DataLoader(val_ds, shuffle=False, collate_fn=val_ds.Collate_fn, 
 dataloders = {'train': dl,
               'valid': valid_dl}
 metrics = {'acc': accuracy_score_prob, 
-           'nDCG@5': nDCGat5_Calculator('../data/Kdd/valid_all_processed_me.h5')}
+           'nDCG@5': nDCGat5_Calculator('../user_data/tmp_data/valid_all_processed_label.h5')}
 
 
-basic_model = BasicModel(cfg['bert_model_name'], cfg=basic_model_cfg)
+basic_model = BasicModelLabel(cfg['bert_model_name'], cfg=cfg, model_cfg=basic_model_cfg)
 model = basic_model
 
 
@@ -267,6 +276,7 @@ scheduler = get_linear_schedule_with_warmup(
     optimizer,
     num_warmup_steps=int((len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'] * 0.2),
     num_training_steps=(len(ds) // cfg['dataloader_cfg']['batch_size'] + 1) * cfg['epochs'])
+
 criterion = nn.BCEWithLogitsLoss()
 
 

@@ -438,7 +438,7 @@ class MNSAllDataset(BasicAllDataset):
 
 
 class nDCGat5_Calculator:
-    def __init__(self, h5path, k=5, val_ans_path='../data/Kdd/valid_answer.json'):
+    def __init__(self, h5path, k=5, val_ans_path='../data/valid/valid_answer.json'):
         self.test_dataset = BasicAllDataset(h5path)
         self.k = k
         self.val_ans_path = val_ans_path
@@ -473,11 +473,11 @@ class nDCGat5_Calculator:
                             'product4':product4,
                             'product5':product5,
                             })
-        sub.to_csv('result/val_submission.csv', index=False) # 不保存行索引
+        sub.to_csv('../user_data/tmp_data/val_submission.csv', index=False) # 不保存行索引
 
         reference = json.load(open(self.val_ans_path))
         # read predictions
-        predictions = read_submission('result/val_submission.csv', reference, k)
+        predictions = read_submission('../user_data/tmp_data/val_submission.csv', reference, k)
 
         # compute score for each query
         score_sum = 0.
@@ -490,3 +490,34 @@ class nDCGat5_Calculator:
         score = score_sum / len(reference)
 
         return score
+
+    def save_submission(self, preds, path):
+
+        val_dataset = self.test_dataset
+        dataset_sizes = len(val_dataset)
+        others = val_dataset._get_others(slice(dataset_sizes)) # list的Index作为参数时，需要切片slice作为参数传入
+        queryID = others[:, 4]
+        productID = others[:, 0]
+
+        pred_dict = defaultdict(list)
+
+        for i in range(dataset_sizes):
+            pred_dict[queryID[i]].append((productID[i], preds[i]))
+        query_id,product1,product2,product3,product4,product5 = [],[],[],[],[],[]
+        for key in pred_dict.keys():
+            rlist = pred_dict[key]
+            rlist.sort(key=lambda x: x[1], reverse=True) # 降序
+            query_id.append(key)
+            product1.append(rlist[0][0])
+            product2.append(rlist[1][0])
+            product3.append(rlist[2][0])
+            product4.append(rlist[3][0])
+            product5.append(rlist[4][0])
+        sub = pd.DataFrame({'query-id':query_id,
+                            'product1':product1,
+                            'product2':product2,
+                            'product3':product3,
+                            'product4':product4,
+                            'product5':product5,
+                            })
+        sub.to_csv(path, index=False) # 不保存行索引

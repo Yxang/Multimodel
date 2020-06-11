@@ -125,8 +125,8 @@ def create_h5_processed(tsv, target, MAX_NUM_BOXES=128, WRITE_CHUNK=1024):
                 print('\rline {}'.format(i), end='')
         print()
     return
-
-create_h5_processed('../data/Kdd/train.sample.tsv', '../data/Kdd/train.sample_processed.h5')
-create_h5_processed('../data/Kdd/valid.tsv', '../data/Kdd/valid_processed.h5')
-create_h5_processed('../data/Kdd/train.tsv', '../data/Kdd/train_processed.h5')
+if __name__ == '__main__':
+    create_h5_processed('../data/Kdd/train.sample.tsv', '../data/Kdd/train.sample_processed.h5')
+    create_h5_processed('../data/Kdd/valid.tsv', '../data/Kdd/valid_processed.h5')
+    create_h5_processed('../data/Kdd/train.tsv', '../data/Kdd/train_processed.h5')
 

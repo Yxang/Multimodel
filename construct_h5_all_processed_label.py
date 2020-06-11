@@ -157,6 +157,7 @@ def create_h5_all_processed(
 
     return
 
-create_h5_all_processed('../data/Kdd/train.sample_processed.h5', '../data/Kdd/train.sample_all_processed_label.h5', '../data/Kdd/train.sample.tsv')
-create_h5_all_processed('../data/Kdd/train_processed.h5', '../data/Kdd/train_all_processed_label.h5', '../data/Kdd/train.tsv')
-create_h5_all_processed('../data/Kdd/valid_processed.h5', '../data/Kdd/valid_all_processed_label.h5', '../data/Kdd/valid.tsv')
+if __name__ == '__main__':
+    create_h5_all_processed('../data/Kdd/train.sample_processed.h5', '../data/Kdd/train.sample_all_processed_label.h5', '../data/Kdd/train.sample.tsv')
+    create_h5_all_processed('../data/Kdd/train_processed.h5', '../data/Kdd/train_all_processed_label.h5', '../data/Kdd/train.tsv')
+    create_h5_all_processed('../data/Kdd/valid_processed.h5', '../data/Kdd/valid_all_processed_label.h5', '../data/Kdd/valid.tsv')
