@@ -20,7 +20,7 @@ from torchvision import transforms
 
 #from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW, get_linear_schedule_with_warmup
 
-from utils import MyTokenizer, MyBert
+from utils import MyTokenizer, MyAlbert
 
 import copy
 
@@ -34,7 +34,7 @@ cfg = {}
 cfg['train_fraction'] = 0.1
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
-cfg['bert_model_name'] = 'albert-large-v2'
+cfg['bert_model_name'] = 'albert-xxlarge-v2'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
     'batch_size': 50,
@@ -80,7 +80,7 @@ num_to_label = read_label_info()
 label_to_token_id = convert_label_to_token_id(num_to_label, myTokenizer)
 #print(label_to_token_id)
 
-mybert = MyBert(cfg['bert_model_name'])
+mybert = MyAlbert(cfg['bert_model_name'])
 label_to_embedding = [np.zeros((1, 1024))]
 for i in label_to_token_id:
     emb = mybert(i)

@@ -27,13 +27,14 @@ class MyTokenizer:
         if max_len is None:
             max_len = self.cfg['max_query_word']
         tokenized_text = self.tokenizer.tokenize(text)
-        indexed_tokens = self.tokenizer.convert_tokens_to_ids(['[CLS]'] + tokenized_text + ["[SEP]"])
+        indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokenized_text)
+        indexed_tokens = [self.tokenizer.cls_token_id] + indexed_tokens + [self.tokenizer.sep_token_id]
         
         if pad:
             if len(indexed_tokens) > max_len:
                 indexed_tokens = indexed_tokens[:max_len]# + [self.tokenizer.sep_token_id]
             elif len(indexed_tokens) < max_len:
-                indexed_tokens = [0] * (max_len - len(indexed_tokens)) + indexed_tokens
+                indexed_tokens = indexed_tokens + [0] * (max_len - len(indexed_tokens))
         if tensor:
             tokens_tensor = torch.tensor(indexed_tokens)
             return tokens_tensor
