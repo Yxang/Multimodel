@@ -31,9 +31,9 @@ class MyTokenizer:
         
         if pad:
             if len(indexed_tokens) > max_len:
-                indexed_tokens = indexed_tokens[:max_len - 1] + [self.tokenizer.sep_token_id]
+                indexed_tokens = indexed_tokens[:max_len]# + [self.tokenizer.sep_token_id]
             elif len(indexed_tokens) < max_len:
-                indexed_tokens = indexed_tokens + [0] * (max_len - len(indexed_tokens))
+                indexed_tokens = [0] * (max_len - len(indexed_tokens)) + indexed_tokens
         if tensor:
             tokens_tensor = torch.tensor(indexed_tokens)
             return tokens_tensor
@@ -154,9 +154,10 @@ class BasicDataset(data.Dataset):
         label_to_token_id = {}
         for k, v in class_num_to_label.items():
             #lens.append(len(tokenizer.tokenizer.tokenize(v)))
-            label_to_token_id[k] = mytokenizer.convert_str_to_ids(v, 
-                                                                tensor=False,
-                                                                max_len=self.cfg['max_class_word_num'])
+            label_to_token_id[k] = mytokenizer.convert_str_to_ids(
+                v,
+                tensor=False,
+                max_len=self.cfg['max_class_word_num'])
         #print(np.percentile(lens, [0, 25, 50, 75, 95, 99, 100]))
         return label_to_token_id
     

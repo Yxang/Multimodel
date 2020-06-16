@@ -39,6 +39,12 @@ torch.manual_seed(2020)
 parser = argparse.ArgumentParser()
 parser.add_argument('--local_rank', default=-1, type=int,
                     help='node rank for distributed training')
+parser.add_argument('--batch_size', default=128, type=int,
+                    help='batch size')
+parser.add_argument('--lr', default=3e-4, type=float,
+                    help='learning rate')
+parser.add_argument('--albert_lr', default=3e-7, type=float,
+                    help='learning rate of albert')
 args = parser.parse_args()
 
 dist.init_process_group(backend='nccl')
@@ -48,16 +54,16 @@ if __name__ == '__main__':
 
     cfg = {}
     cfg['train_fraction'] = 1
-    cfg['lr'] = 3e-4
-    cfg['albert_lr'] = 3e-7
+    cfg['lr'] = args.lr
+    cfg['albert_lr'] = args.albert_lr
     cfg['max_query_word'] = 9
     cfg['max_box_num'] = 9
     cfg['bert_model_name'] = 'albert-large-v2'
     cfg['emb_file'] = 'label_emb_albert-large-v2.npy'
     cfg['max_class_word_num'] = 11
     cfg['dataloader_cfg'] = {
-        'batch_size': 32,
-        'num_workers': 14,
+        'batch_size': args.batch_size,
+        'num_workers': 16,
         'pin_memory': True}
     cfg['epochs'] = 20
     cfg['apex_opt_level'] = 'O2'

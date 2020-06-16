@@ -99,6 +99,7 @@ def create_h5_all_processed(
             i, chunk = chunkof(i - 1)
             i += 1
             if chunk not in created_chunk:
+                print(f'creating chunk {chunk}')
                 create_ds(hf, chunk)
                 created_chunk.add(chunk)
             querys_h5ds = hf.get('querys/data' + f'_{chunk}')
@@ -145,11 +146,11 @@ def create_h5_all_processed(
                 box_labels_h5ds.resize(chunk_i + 1, axis=0)
                 box_labels_h5ds[chunk_i, :] = w_class_label
                 if i % WRITE_CHUNK == WRITE_CHUNK - 1:
-                    print('\rline {}'.format(i), end='')
+                    print('\rline {}, chunk {}'.format(i, chunk), end='')
                 i += 1
                 l = f.readline()
             if i % WRITE_CHUNK != WRITE_CHUNK - 1:
-                print('\rline {}'.format(i), end='')
+                print('\rline {}, chunk {}'.format(i, chunk).format(i), end='')
         print()
 
         ##############
@@ -158,11 +159,13 @@ def create_h5_all_processed(
         with h5py.File(source_h5, 'r', libver='latest') as h5file_source:
             others_h5ds_source = h5file_source.get('others/data')
             len_others = h5file_source.get('others/data').shape[0]
-            for i in range(len_others):
+            for i in tqdm(range(len_others)):
                 chunk_i, chunk = chunkof(i)
                 others_h5ds = hf.get('others/data' + f'_{chunk}')
                 others_h5ds.resize(chunk_i + 1, axis=0)
                 others_h5ds[chunk_i] = others_h5ds_source[i]
+                if i % WRITE_CHUNK == WRITE_CHUNK - 1:
+                    print('\rline {}, chunk {}'.format(i, chunk), end='')
         print('reading others finished!')
 
 
