@@ -34,15 +34,14 @@ cfg = {}
 cfg['train_fraction'] = 0.1
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
-cfg['bert_model_name'] = 'bert-base-uncased'
+cfg['bert_model_name'] = 'albert-large-v2'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
-    'batch_size': 256,
-    'num_workers': 14,
-    'pin_memory': True}
+    'batch_size': 50,
+    'num_workers': 8,
+    'pin_memory': False}
 cfg['epochs'] = 20
 cfg['apex_opt_level'] = 'O2'
-cfg['save_name'] = 'bert-base-3fc-dropout'
 cfg['num_negative_sampling'] = 5
 cfg['save_RAM'] = True
 
@@ -82,7 +81,7 @@ label_to_token_id = convert_label_to_token_id(num_to_label, myTokenizer)
 #print(label_to_token_id)
 
 mybert = MyBert(cfg['bert_model_name'])
-label_to_embedding = [np.zeros((1, 768))]
+label_to_embedding = [np.zeros((1, 1024))]
 for i in label_to_token_id:
     emb = mybert(i)
     emb = emb.detach().numpy()
@@ -90,5 +89,5 @@ for i in label_to_token_id:
 #label_to_embedding.reshape(())
 print(label_to_embedding)
 cat_label_to_embedding = np.concatenate(label_to_embedding, axis=0)
-with open('label_emb_bert_base_uncased.npy', 'wb') as f:
+with open('label_emb_albert-large-v2.npy', 'wb') as f:
     np.save(f, cat_label_to_embedding)

@@ -11,7 +11,7 @@ from torchvision import transforms
 
 from tqdm import tqdm
 
-from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, AdamW, AlbertTokenizer, AlbertModel
 
 import json
 from collections import defaultdict
@@ -20,7 +20,7 @@ from eval_utils import read_submission, get_ndcg
 
 class MyTokenizer:
     def __init__(self, cfg):
-        self.tokenizer = BertTokenizer.from_pretrained(cfg['bert_model_name'])
+        self.tokenizer = AlbertTokenizer.from_pretrained(cfg['bert_model_name'])
         self.cfg = cfg
         
     def convert_str_to_ids(self, text, pad=True, tensor=True, max_len=None):
@@ -31,9 +31,9 @@ class MyTokenizer:
         
         if pad:
             if len(indexed_tokens) > max_len:
-                indexed_tokens = indexed_tokens[:max_len]# + [tokenizer.tokenizer.vocab['[SEP]']]
+                indexed_tokens = indexed_tokens[:max_len - 1] + [self.tokenizer.sep_token_id]
             elif len(indexed_tokens) < max_len:
-                indexed_tokens = [0] * (max_len - len(indexed_tokens)) + indexed_tokens
+                indexed_tokens = indexed_tokens + [0] * (max_len - len(indexed_tokens))
         if tensor:
             tokens_tensor = torch.tensor(indexed_tokens)
             return tokens_tensor
@@ -51,6 +51,19 @@ class MyBert(nn.Module):
     def forward(self, input_ids):
         bert_out, _ = self.bert(input_ids)
         out = bert_out[:, 0, :]
+        return out
+
+class MyAlbert(nn.Module):
+    """
+    Take 0-th index of the sequence from the last attention encoder output
+    """
+    def __init__(self, pretrained_model_name_or_path, *inputs, **kwargs):
+        super(MyAlbert, self).__init__()
+        self.albert = AlbertModel.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+
+    def forward(self, input_ids):
+        albert_out, _ = self.albert(input_ids)
+        out = albert_out[:, 0, :]
         return out
     
 class BasicDataset(data.Dataset):
@@ -342,21 +355,26 @@ class TestDataset(BasicDataset):
         queryID = self.data_others[4]
         return productID, queryID
 
-class BasicAllDataset(data.Dataset):
-    def __init__(self, h5path, single_thread=True, *args, **kwargs):
-        super(BasicAllDataset, self).__init__(*args, **kwargs)
+class BasicAlbertDataset(data.Dataset):
+    def __init__(self, h5path, single_thread=True, h5_chunk=500000, *args, **kwargs):
+        super(BasicAlbertDataset, self).__init__(*args, **kwargs)
         self.h5path = h5path
         self.single_thread = single_thread
+        self.h5_chunk = h5_chunk
         with h5py.File(h5path, 'r', libver='latest') as h5file:
-            self.size = h5file.get('querys/data').shape[0]
+            self.size = h5file.get('querys/data_0').shape[0]
         if self.single_thread:
             self.h5file = h5py.File(h5path, 'r', libver='latest')
 
+    def chunkof(self, index):
+        return index % self.h5_chunk, index // self.h5_chunk
+
     def _getitem(self, index, opened_h5file):
-        query = opened_h5file.get('querys/data')[index]
-        box_pos = opened_h5file.get('box_poss/data')[index]
-        box_feature = opened_h5file.get('box_feature/data')[index]
-        box_label = opened_h5file.get('box_label/data')[index]
+        index, chunk = self.chunkof(index)
+        query = opened_h5file.get('querys/data' + f'_{chunk}')[index]
+        box_pos = opened_h5file.get('box_poss/data' + f'_{chunk}')[index]
+        box_feature = opened_h5file.get('box_feature/data' + f'_{chunk}')[index]
+        box_label = opened_h5file.get('box_label/data' + f'_{chunk}')[index]
         return query, box_pos, box_feature, box_label
 
     def __getitem__(self, index):
@@ -378,11 +396,12 @@ class BasicAllDataset(data.Dataset):
         return self.size
 
     def _get_others(self, index):
+        index, chunk = self.chunkof(index)
         if self.single_thread:
-            return self.h5file.get('others/data')[index]
+            return self.h5file.get('others/data' + f'_{chunk}')[index]
         else:
             with h5py.File(self.h5path, 'r', libver='latest') as opened_h5file:
-                others = opened_h5file.get('others/data')[index]
+                others = opened_h5file.get('others/data_0' + f'_{chunk}')[index]
             return others
 
     @staticmethod
@@ -391,11 +410,10 @@ class BasicAllDataset(data.Dataset):
         cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
         return cat_samples
 
-
-class MNSAllDataset(BasicAllDataset):
+class MNSAlbertDataset(BasicAlbertDataset):
 
     def __init__(self, h5path, neg_k=5, single_thread=True, *args, **kwargs):
-        super(MNSAllDataset, self).__init__(h5path, single_thread=single_thread, *args, **kwargs)
+        super(MNSAlbertDataset, self).__init__(h5path, single_thread=single_thread, *args, **kwargs)
         self.neg_k = neg_k
 
     def __getitem__(self, index):
@@ -436,10 +454,9 @@ class MNSAllDataset(BasicAllDataset):
         cat_samples = [torch.stack(transposed_sample) for transposed_sample in transposed_samples]
         return cat_samples
 
-
 class nDCGat5_Calculator:
     def __init__(self, h5path, k=5, val_ans_path='../data/Kdd/valid_answer.json'):
-        self.test_dataset = BasicAllDataset(h5path)
+        self.test_dataset = BasicAlbertDataset(h5path)
         self.k = k
         self.val_ans_path = val_ans_path
         
@@ -448,7 +465,7 @@ class nDCGat5_Calculator:
     
     def nDCGat5(self, val_dataset, preds, k=5):
         dataset_sizes = len(val_dataset)
-        others = val_dataset._get_others(slice(dataset_sizes)) # list的Index作为参数时，需要切片slice作为参数传入
+        others = np.stack([val_dataset._get_others(i) for i in range(dataset_sizes)], axis=0)
         queryID = others[:, 4]
         productID = others[:, 0]
 
