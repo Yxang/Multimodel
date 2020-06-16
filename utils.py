@@ -64,7 +64,7 @@ class MyAlbert(nn.Module):
 
     def forward(self, input_ids):
         albert_out, _ = self.albert(input_ids)
-        out = albert_out[:, 0, :]
+        out = torch.mean(albert_out, dim=1)
         return out
     
 class BasicDataset(data.Dataset):

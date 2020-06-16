@@ -108,7 +108,8 @@ if __name__ == '__main__':
 
             image_seq_feat = torch.cat([pos_emb, box_feature, label_emb], dim=2)
             image_lstm, _ = self.img_bilstm(image_seq_feat)
-            image_emb = image_lstm.view(batch_size, -1, 2, self.model_cfg['bilstm_hidden_size'])[:, 0, 1, :]
+            image_emb = image_lstm.view(batch_size, -1, 2, self.model_cfg['bilstm_hidden_size'])[:, :, 1, :]
+            image_emb = torch.mean(image_emb, dim=1)
             return image_emb
 
     class AlbertLabel(nn.Module):

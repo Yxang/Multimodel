@@ -34,7 +34,7 @@ cfg = {}
 cfg['train_fraction'] = 0.1
 cfg['max_query_word'] = 9
 cfg['max_box_num'] = 9
-cfg['bert_model_name'] = 'albert-xxlarge-v2'
+cfg['bert_model_name'] = 'albert-large-v2'
 cfg['max_class_word_num'] = 11
 cfg['dataloader_cfg'] = {
     'batch_size': 50,
