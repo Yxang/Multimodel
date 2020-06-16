@@ -39,12 +39,15 @@ torch.manual_seed(2020)
 parser = argparse.ArgumentParser()
 parser.add_argument('--local_rank', default=-1, type=int,
                     help='node rank for distributed training')
-parser.add_argument('--batch_size', default=128, type=int,
+parser.add_argument('--batch_size', default=64, type=int,
                     help='batch size')
 parser.add_argument('--lr', default=3e-4, type=float,
                     help='learning rate')
 parser.add_argument('--albert_lr', default=3e-7, type=float,
                     help='learning rate of albert')
+parser.add_argument('--sample', dest='issample', action='store_const',
+                    const=True, default=False,
+                    help='use the sample dataset')
 args = parser.parse_args()
 
 dist.init_process_group(backend='nccl')
@@ -70,6 +73,7 @@ if __name__ == '__main__':
     cfg['save_name'] = 'albert-v1'
     cfg['num_negative_sampling'] = 5
     cfg['save_RAM'] = True
+    cfg['use_sample'] = args.issample
 
     basic_model_cfg = {}
     basic_model_cfg['pos_emb_size'] = 8
@@ -252,8 +256,12 @@ if __name__ == '__main__':
 
     tokenizer = MyTokenizer(cfg=cfg)
 
-
-    ds = MNSAlbertDataset('../data/Kdd/train_processed_albert.h5', neg_k=cfg['num_negative_sampling'], single_thread=False)
+    if cfg['use_sample']:
+        ds = MNSAlbertDataset('../data/Kdd/train.sample_processed_albert.h5', neg_k=cfg['num_negative_sampling'],
+                              single_thread=False)
+    else:
+        ds = MNSAlbertDataset('../data/Kdd/train_processed_albert.h5', neg_k=cfg['num_negative_sampling'],
+                              single_thread=False)
     val_ds = BasicAlbertDataset('../data/Kdd/valid_processed_albert.h5', single_thread=True)
 
     train_size = len(ds)
